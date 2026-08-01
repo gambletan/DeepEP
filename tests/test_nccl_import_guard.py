@@ -19,7 +19,14 @@ def module(name, **attributes):
     return value
 
 
-def load_deep_ep(monkeypatch, *, runtime_version=22809, built_version=23004, suppress=False):
+def load_deep_ep(
+    monkeypatch,
+    *,
+    runtime_version=22809,
+    built_version=23004,
+    suppress=False,
+    loaded_nccl_path="/runtime/libnccl.so.2",
+):
     package_name = "deep_ep_guard_test"
     calls = {"runtime_queries": [], "init_jit": 0}
 
@@ -105,7 +112,8 @@ def load_deep_ep(monkeypatch, *, runtime_version=22809, built_version=23004, sup
 
     def fake_open(path, *args, **kwargs):
         if str(path) == "/proc/self/maps":
-            return io.StringIO("7f000 r-xp 0000 00:00 0 /runtime/libnccl.so.2\n")
+            line = f"7f000 r-xp 0000 00:00 0 {loaded_nccl_path}\n" if loaded_nccl_path else ""
+            return io.StringIO(line)
         return real_open(path, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "open", fake_open)
@@ -164,3 +172,8 @@ def test_suppression_skips_runtime_version_check(monkeypatch):
 
     assert calls["runtime_queries"] == []
     assert calls["init_jit"] == 1
+
+
+def test_reports_when_no_nccl_runtime_is_loaded(monkeypatch):
+    with pytest.raises(AssertionError, match="No NCCL runtime is loaded"):
+        load_deep_ep(monkeypatch, loaded_nccl_path=None)

@@ -99,6 +99,14 @@ def test_reports_nccl_api_failure(monkeypatch):
         module.get_nccl_runtime_version("/runtime/libnccl.so.2")
 
 
+def test_reports_missing_nccl_version_symbol(monkeypatch):
+    module = load_nccl_module()
+    monkeypatch.setattr(module.ctypes, "CDLL", lambda path: object())
+
+    with pytest.raises(RuntimeError, match=r"libnccl\.so\.2.*does not export ncclGetVersion"):
+        module.get_nccl_runtime_version("/runtime/libnccl.so.2")
+
+
 def test_build_metadata_records_nccl_header_version(tmp_path, monkeypatch):
     module = load_setup_module(monkeypatch)
     nccl_root = tmp_path / "nccl"

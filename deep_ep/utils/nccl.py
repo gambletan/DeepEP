@@ -20,7 +20,10 @@ def read_nccl_header_version(header_path) -> int:
 
 def get_nccl_runtime_version(library_path: str) -> int:
     library = ctypes.CDLL(library_path)
-    get_version = library.ncclGetVersion
+    try:
+        get_version = library.ncclGetVersion
+    except AttributeError as exc:
+        raise RuntimeError(f"{library_path} does not export ncclGetVersion") from exc
     get_version.argtypes = [ctypes.POINTER(ctypes.c_int)]
     get_version.restype = ctypes.c_int
     version = ctypes.c_int()
